@@ -110,6 +110,20 @@ assertDeepEqual(julySunday.map(week => week.week), [27, 28, 29, 30, 31, 32], 'ca
 const januarySunday = calendar.monthGrid(2021, 0, 0, '')
 assertEqual(januarySunday[0].week, 53, 'calendar carries the previous ISO year into a straddling first row')
 
+// Chile starts DST at local midnight on 2026-09-06, so that midnight never
+// happens. Every cell must still be one day, under its own weekday.
+const previousTZ = process.env.TZ
+process.env.TZ = 'America/Santiago'
+const santiagoDays = calendar.monthGrid(2026, 8, 1, '').flatMap(week => week.days)
+if (previousTZ === undefined) delete process.env.TZ
+else process.env.TZ = previousTZ
+assertDeepEqual(
+  santiagoDays.slice(5, 9).map(day => [day.key, day.weekday]),
+  [['2026-09-05', 6], ['2026-09-06', 0], ['2026-09-07', 1], ['2026-09-08', 2]],
+  'calendar steps across a midnight DST start one day at a time'
+)
+assertEqual(new Set(santiagoDays.map(day => day.key)).size, 42, 'calendar never repeats a day across a midnight DST start')
+
 // ---- stepping
 assertDeepEqual(calendar.stepMonth(2026, 0, 1), { year: 2026, month: 1 }, 'calendar steps to the next month')
 assertDeepEqual(calendar.stepMonth(2026, 0, -1), { year: 2025, month: 11 }, 'calendar steps back across the new year')
