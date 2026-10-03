@@ -74,11 +74,13 @@ pass "writer emits fixed anchors bound to exact private source inodes"
 reset_case
 mkdir -p "$HOME/.windows" "$HOME/Windows"
 chmod 2777 "$HOME/Windows"
-prepare_user_mount_sources
 write 4G 2 64G alice s3cret Europe/Copenhagen
 resolve_caller
 [[ $(stat -Lc '%a' "$HOME/Windows") == 700 ]] || fail "setgid shared source was not reset to 0700"
 mounted_leaf_matches "$EXPECTED_SHARED" "$(stat -Lc '%d:%i' "$HOME/Windows")" || fail "setgid shared source does not verify after hardening"
+chmod 2777 "$HOME/Windows"
+prepare_user_mount_sources
+[[ $(stat -Lc '%a' "$HOME/Windows") == 700 ]] || fail "user-side hardening kept the setgid bit"
 pass "hardening clears the setgid bit the container leaves on the shared source"
 
 # Input cannot widen a mount or compose field.
