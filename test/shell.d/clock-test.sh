@@ -112,11 +112,34 @@ assertEqual(januarySunday[0].week, 53, 'calendar carries the previous ISO year i
 
 // Chile starts DST at local midnight on 2026-09-06, so that midnight never
 // happens. Every cell must still be one day, under its own weekday.
+// Node resolves a missing local time forward and QML's engine back to the day
+// before, so the grid is walked with a Date that falls back the way QML's does.
+const NodeDate = Date
+class QmlDate extends NodeDate {
+  constructor(...args) {
+    super(...args)
+    if (args.length >= 3) this.fallBack(args[3] || 0)
+  }
+  setDate(day) {
+    const hours = this.getHours()
+    super.setDate(day)
+    this.fallBack(hours)
+    return this.getTime()
+  }
+  fallBack(hours) {
+    const skipped = this.getHours() - hours
+    if (skipped > 0) this.setTime(this.getTime() - skipped * 3600000)
+  }
+}
 const previousTZ = process.env.TZ
 process.env.TZ = 'America/Santiago'
+const santiagoMidnightDay = new QmlDate(2026, 8, 6).getDate()
+globalThis.Date = QmlDate
 const santiagoDays = calendar.monthGrid(2026, 8, 1, '').flatMap(week => week.days)
+globalThis.Date = NodeDate
 if (previousTZ === undefined) delete process.env.TZ
 else process.env.TZ = previousTZ
+assertEqual(santiagoMidnightDay, 5, 'calendar test resolves a missing midnight back to the day before, as QML does')
 assertDeepEqual(
   santiagoDays.slice(5, 9).map(day => [day.key, day.weekday]),
   [['2026-09-05', 6], ['2026-09-06', 0], ['2026-09-07', 1], ['2026-09-08', 2]],
